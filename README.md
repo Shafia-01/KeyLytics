@@ -75,12 +75,12 @@ gemkey-ai/
 │   ├── agent.py                    # Main keyword discovery agent
 │   ├── lightweight_agent.py        # Quick analysis agent
 │   ├── competitor_gap_analyzer.py  # Competitor analysis
-│   ├── topic_clusterer.py         # Topic clustering
-│   ├── trend_forecaster.py        # Trend forecasting
-│   └── ...                        # Other modules
-├── cache/                         # Cached results
-├── requirements.txt               # Python dependencies
-└── README.md                      # Documentation
+│   ├── topic_clusterer.py          # Topic clustering
+│   ├── trend_forecaster.py         # Trend forecasting
+│   └── ...                         # Other modules
+├── cache/                          # Cached results
+├── requirements.txt                # Python dependencies
+└── README.md                       # Documentation
 ```
 
 ## 🔍 Monitoring & Logs
