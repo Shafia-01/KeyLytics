@@ -17,7 +17,7 @@ genai, pd, json, px, go = lazy_imports()
 
 load_dotenv()
 
-st.set_page_config(page_title="KeyLytics AI", page_icon="🔑", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Keylytics", page_icon="🔑", layout="wide", initial_sidebar_state="expanded")
 
 from src.gemini_client import safe_gemini_call, GEMINI_MODELS
 from src.db_client import save_to_db
@@ -753,7 +753,7 @@ def render_home_overview():
     <div class="home-container">
         <div class="welcome-section">
             <div class="app-logo">💎</div>
-            <h1 class="app-title">KeyLytics AI</h1>
+            <h1 class="app-title">Keylytics</h1>
             <p class="app-subtitle">Advanced SEO Research & Analysis Platform</p>
         </div>
     </div>
@@ -1625,7 +1625,7 @@ def generate_chat_response(user_input):
         elif any(word in user_lower for word in ["cluster", "group", "topic", "semantic"]):
             return f"🧩 **Topic Clustering Ready!**\n\nI can help you cluster topics for '{user_input}'. Here's what I can do:\n\n• **Semantic keyword clustering** into meaningful groups\n• **Topic opportunity scoring** and prioritization\n• **Content strategy recommendations** by cluster\n• **Keyword relationship mapping** and insights\n\n💡 **Quick Start:** Use the 'Topic Clustering' tab or ask me to 'cluster topics for [your keyword]'"
         else:
-            return f"💎 **Welcome to KeyLytics AI!**\n\nI understand you're asking about '{user_input}'. I'm your comprehensive SEO research assistant with these powerful features:\n\n🔍 **Keyword Analysis** - Find and analyze keywords with metrics\n🕵️ **Competitor Analysis** - Discover keyword gaps and opportunities\n📊 **SERP Analysis** - Optimize snippets and find PAA questions\n🧩 **Topic Clustering** - Group keywords semantically\n📈 **Trend Forecasting** - Predict trends and seasonal patterns\n\n💡 **How to get started:**\n• Use the tabs above for detailed analysis\n• Ask me specific questions like 'find keywords for [topic]'\n• Try 'analyze competitors for [keyword]' for gap analysis\n• Use 'show trends for [keyword]' for forecasting\n\nWhat would you like to explore first?"
+            return f"💎 **Welcome to Keylytics!**\n\nI understand you're asking about '{user_input}'. I'm your comprehensive SEO research assistant with these powerful features:\n\n🔍 **Keyword Analysis** - Find and analyze keywords with metrics\n🕵️ **Competitor Analysis** - Discover keyword gaps and opportunities\n📊 **SERP Analysis** - Optimize snippets and find PAA questions\n🧩 **Topic Clustering** - Group keywords semantically\n📈 **Trend Forecasting** - Predict trends and seasonal patterns\n\n💡 **How to get started:**\n• Use the tabs above for detailed analysis\n• Ask me specific questions like 'find keywords for [topic]'\n• Try 'analyze competitors for [keyword]' for gap analysis\n• Use 'show trends for [keyword]' for forecasting\n\nWhat would you like to explore first?"
     except Exception as e:
         return f"⚠️ **I encountered an error:** {str(e)}\n\nPlease try again or use the specific tabs for detailed analysis. If the issue persists, check your API keys and internet connection."
 

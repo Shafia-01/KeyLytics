@@ -39,7 +39,7 @@ def classify_difficulty(score):
 
 # MAIN AGENT
 def run_agent(seed_keyword, max_keywords=50):
-    print(f"\nRunning KeyLytics AI for: {seed_keyword}")
+    print(f"\nRunning Keylytics for: {seed_keyword}")
     keywords = generate_keywords(seed_keyword)
     
     # Fallback if Gemini failed
