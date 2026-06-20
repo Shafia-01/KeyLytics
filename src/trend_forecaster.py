@@ -99,13 +99,16 @@ def perform_trend_analysis(historical_data):
         trend_metrics = calculate_trend_metrics(scores)
         # Determine trend direction
         trend_direction = determine_trend_direction(trend_metrics)
+        current_trend = data.get("current_trend")
+        if current_trend is None:
+            current_trend = 50
         trend_analysis[keyword] = {
             "metrics": trend_metrics,
             "direction": trend_direction,
             "volatility": calculate_volatility(scores),
             "peak_month": find_peak_month(data["historical_scores"]),
             "growth_rate": calculate_growth_rate(scores),
-            "current_trend": data.get("current_trend", 50)
+            "current_trend": current_trend
         }
     return trend_analysis
 
@@ -169,7 +172,9 @@ def generate_trend_forecasts(trend_analysis):
     """Generate forecasts for the next 6 months."""
     forecasts = {}
     for keyword, analysis in trend_analysis.items():
-        current_trend = analysis.get("current_trend", 50)
+        current_trend = analysis.get("current_trend")
+        if current_trend is None:
+            current_trend = 50
         slope = analysis["metrics"]["slope"]
         growth_rate = analysis["growth_rate"]
         # Generate 6-month forecast

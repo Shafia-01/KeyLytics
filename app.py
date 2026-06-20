@@ -1255,28 +1255,44 @@ def render_serp_analysis():
     # Display results
     if "serp_results" in st.session_state and st.session_state.serp_results:
         results = st.session_state.serp_results
+        
         # SERP preview cards
-        if "serp_data" in results and results["serp_data"]:
+        serp_data = results.get("serp_data") or {}
+        if isinstance(serp_data, dict) and serp_data:
             st.markdown("#### 🔍 Top-Ranking Pages")
-            organic_results = results.get("serp_data", {}).get("organic_results", [])
+            organic_results = serp_data.get("organic_results") or []
             for i, result in enumerate(organic_results[:5]):
                 with st.expander(f"#{i+1} {result.get('title', 'No title')[:50]}..."):
                     st.markdown(f"**URL:** {result.get('link', 'No URL')}")
                     st.markdown(f"**Snippet:** {result.get('snippet', 'No snippet')[:200]}...")
                     st.markdown(f"**Domain:** {result.get('domain', 'Unknown')}")
-        # Featured snippets
-        if "featured_snippets" in results and results["featured_snippets"]:
-            st.markdown("#### ⭐ Featured Snippets")
-            for snippet in results["featured_snippets"][:3]:
-                st.markdown(f"""
-                **{snippet.get('title', 'Featured Snippet')}**
-                {snippet.get('content', 'No content available')}
-                """)
-                st.divider()
+                    
+        # Featured Snippet
+        featured_snippet = serp_data.get("featured_snippet") if isinstance(serp_data, dict) else None
+        if featured_snippet and isinstance(featured_snippet, dict) and featured_snippet.get("title"):
+            st.markdown("#### ⭐ Featured Snippet")
+            st.markdown(f"""
+            **{featured_snippet.get('title', 'Featured Snippet')}**
+            {featured_snippet.get('snippet', featured_snippet.get('description', 'No content available'))}
+            
+            [Link]({featured_snippet.get('link', '#')})
+            """)
+            st.divider()
+            
+        # Snippet Opportunities
+        if "snippet_analysis" in results and results["snippet_analysis"]:
+            snippet_analysis = results["snippet_analysis"]
+            if isinstance(snippet_analysis, dict) and snippet_analysis.get("snippet_opportunities"):
+                st.markdown("#### 💡 Snippet Opportunities")
+                for opp in snippet_analysis["snippet_opportunities"][:3]:
+                    with st.expander(f"{opp.get('type', 'Snippet').title()} - {opp.get('opportunity', '')}"):
+                        st.markdown(f"**Recommendation:** {opp.get('recommendation', '')}")
+                        st.markdown(f"**Priority:** {opp.get('priority', 'medium')}")
+                        
         # PAA questions
         if "paa_questions" in results and results["paa_questions"]:
             paa = results["paa_questions"]
-            if paa.get("questions"):
+            if isinstance(paa, dict) and paa.get("questions"):
                 st.markdown("#### ❓ People Also Ask Questions")
                 for q in paa["questions"][:5]:
                     st.markdown(f"**Q:** {q['question']}")
@@ -1573,9 +1589,11 @@ def render_full_strategy():
                 for keyword, forecast in list(results['trends']['forecasts'].items())[:3]:
                     st.markdown(f"**{keyword}:** {forecast['trend_direction']} ({forecast['predicted_growth']}%)")
         # SERP Analysis
-        if results['serp'] and 'serp_data' in results['serp']:
+        serp_res = results.get('serp') or {}
+        if isinstance(serp_res, dict) and 'serp_data' in serp_res:
             with st.expander("📰 SERP Analysis"):
-                organic_results = results['serp'].get('serp_data', {}).get('organic_results', [])
+                serp_data = serp_res.get('serp_data') or {}
+                organic_results = serp_data.get('organic_results') or [] if isinstance(serp_data, dict) else []
                 st.markdown(f"**Top Results:** {len(organic_results)} pages analyzed")
                 if organic_results:
                     st.markdown(f"**Top Result:** {organic_results[0].get('title', 'No title')}")
@@ -1909,19 +1927,43 @@ def render_serp_analysis_tab():
         # Summary
         st.markdown("### 📋 SERP Summary")
         st.info(results.get("summary", "No summary available"))       
+        
+        # SERP preview cards
+        serp_data = results.get("serp_data") or {}
+        if isinstance(serp_data, dict) and serp_data:
+            st.markdown("### 🔍 Top-Ranking Pages")
+            organic_results = serp_data.get("organic_results") or []
+            for i, result in enumerate(organic_results[:5]):
+                with st.expander(f"#{i+1} {result.get('title', 'No title')[:50]}..."):
+                    st.markdown(f"**URL:** {result.get('link', 'No URL')}")
+                    st.markdown(f"**Snippet:** {result.get('snippet', 'No snippet')[:200]}...")
+                    st.markdown(f"**Domain:** {result.get('domain', 'Unknown')}")
+                    
+        # Featured Snippet
+        featured_snippet = serp_data.get("featured_snippet") if isinstance(serp_data, dict) else None
+        if featured_snippet and isinstance(featured_snippet, dict) and featured_snippet.get("title"):
+            st.markdown("### ⭐ Featured Snippet")
+            st.markdown(f"""
+            **{featured_snippet.get('title', 'Featured Snippet')}**
+            {featured_snippet.get('snippet', featured_snippet.get('description', 'No content available'))}
+            
+            [Link]({featured_snippet.get('link', '#')})
+            """)
+            st.divider()
+            
         # Snippet Opportunities
         if "snippet_analysis" in results and results["snippet_analysis"]:
             snippet_analysis = results["snippet_analysis"]            
-            if snippet_analysis["snippet_opportunities"]:
+            if isinstance(snippet_analysis, dict) and snippet_analysis.get("snippet_opportunities"):
                 st.markdown("### 💡 Snippet Opportunities")                
                 for opp in snippet_analysis["snippet_opportunities"]:
-                    with st.expander(f"{opp['type'].title()} - {opp['opportunity']}"):
-                        st.markdown(f"**Recommendation:** {opp['recommendation']}")
-                        st.markdown(f"**Priority:** {opp['priority']}")        
+                    with st.expander(f"{opp.get('type', 'Snippet').title()} - {opp.get('opportunity', '')}"):
+                        st.markdown(f"**Recommendation:** {opp.get('recommendation', '')}")
+                        st.markdown(f"**Priority:** {opp.get('priority', 'medium')}")        
         # PAA Questions
         if "paa_questions" in results and results["paa_questions"]:
             paa = results["paa_questions"]            
-            if paa["questions"]:
+            if isinstance(paa, dict) and paa.get("questions"):
                 st.markdown("### ❓ People Also Ask Questions")                
                 for q in paa["questions"][:5]:
                     st.markdown(f"**Q:** {q['question']}")
