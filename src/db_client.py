@@ -52,10 +52,33 @@ def _create_engine():
     
     try:
         engine = create_engine(db_url, pool_pre_ping=True)
-        # Test connection
-        with engine.connect() as conn:
+        # Test connection and create tables if they do not exist
+        with engine.begin() as conn:
             conn.execute(text("SELECT 1"))
-        print("Database connection successful")
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS keywords (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    seed VARCHAR(255),
+                    keyword VARCHAR(255) UNIQUE,
+                    volume INT,
+                    competition FLOAT,
+                    cpc FLOAT,
+                    trend INT,
+                    score FLOAT,
+                    difficulty VARCHAR(50),
+                    intent VARCHAR(100),
+                    competitors TEXT,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                );
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS intent_cache (
+                    keyword VARCHAR(255) PRIMARY KEY,
+                    intent VARCHAR(100),
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                );
+            """))
+        print("Database connection successful and schema verified/created")
         return engine
     except Exception as e:
         print(f"Database connection failed: {e}")
