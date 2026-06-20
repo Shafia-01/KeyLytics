@@ -37,11 +37,14 @@ def get_competitor_data(keyword, num_results=5):
         return []
 
 def extract_domain(url):
-    """Simple domain parser from URL."""
     try:
+        from urllib.parse import urlparse
         if not url:
             return ""
-        domain = url.split("/")[2]
-        return domain.replace("www.", "")
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+        return domain
     except Exception:
         return ""

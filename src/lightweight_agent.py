@@ -11,7 +11,7 @@ def run_lightweight_agent(seed_keyword, max_keywords=5):
     Lightweight version of the agent for faster performance.
     Generates fewer keywords and uses cached data when possible.
     """
-    print(f"\nRunning Lightweight GemKey AI for: {seed_keyword}")
+    print(f"\nRunning Lightweight KeyLytics AI for: {seed_keyword}")
     try:
         keywords = generate_keywords_lightweight(seed_keyword, max_keywords)
         if not keywords or len(keywords) == 0:
@@ -103,11 +103,13 @@ def compute_lightweight_score(metrics):
     score = (volume * 0.4 + cpc * 50 * 0.3 + (1 - competition) * 50 * 0.3) / 100
     return round(score, 2)
 
+from src.constants import DIFFICULTY_EASY_THRESHOLD, DIFFICULTY_MEDIUM_THRESHOLD
+
 def classify_difficulty_lightweight(score):
     """Classify difficulty for lightweight analysis."""
-    if score >= 0.7:
+    if score >= DIFFICULTY_EASY_THRESHOLD:
         return "Easy"
-    elif score >= 0.4:
+    elif score >= DIFFICULTY_MEDIUM_THRESHOLD:
         return "Medium"
     else:
         return "Hard"

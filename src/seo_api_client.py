@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from sqlalchemy import text
 from dotenv import load_dotenv
-from src.db_client import connect_db
+from src.db_client import get_engine
 
 load_dotenv()
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
@@ -50,7 +50,7 @@ def get_keyword_metrics(keyword):
 def check_cache(keyword):
     """Check if keyword already exists in DB and return metrics + timestamp."""
     try:
-        engine = connect_db()
+        engine = get_engine()
         query = text("""
             SELECT volume, competition, cpc, last_updated, seed
             FROM keywords
@@ -76,7 +76,7 @@ def check_cache(keyword):
 def save_to_cache(keyword, metrics):
     """Insert or update metrics + refresh timestamp without overwriting complete data."""
     try:
-        engine = connect_db()
+        engine = get_engine()
         with engine.begin() as conn:
             conn.execute(
                 text("""

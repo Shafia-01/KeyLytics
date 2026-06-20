@@ -1,6 +1,6 @@
-# 🤖 GemKey AI - The Gemini-Powered SEO Keyword Agent
+# 🤖 KeyLytics AI - The Gemini-Powered SEO Keyword Agent
 
-GemKey AI is a comprehensive keyword research and SEO analysis platform powered by AI.
+KeyLytics AI is a comprehensive keyword research and SEO analysis platform powered by AI.
 
 ## ✨ Features
 
@@ -25,7 +25,7 @@ GemKey AI is a comprehensive keyword research and SEO analysis platform powered 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd gemkey-ai
+cd keylytics-ai
 
 # Install dependencies
 pip install -r requirements.txt
@@ -69,7 +69,7 @@ SERPAPI_KEY=your_serpapi_key
 ## 📁 Project Structure
 
 ```
-gemkey-ai/
+keylytics-ai/
 ├── app.py                          # Main Streamlit application
 ├── src/                            # Source code modules
 │   ├── agent.py                    # Main keyword discovery agent

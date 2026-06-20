@@ -104,7 +104,8 @@ def perform_trend_analysis(historical_data):
             "direction": trend_direction,
             "volatility": calculate_volatility(scores),
             "peak_month": find_peak_month(data["historical_scores"]),
-            "growth_rate": calculate_growth_rate(scores)
+            "growth_rate": calculate_growth_rate(scores),
+            "current_trend": data.get("current_trend", 50)
         }
     return trend_analysis
 

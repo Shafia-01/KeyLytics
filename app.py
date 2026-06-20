@@ -17,9 +17,11 @@ genai, pd, json, px, go = lazy_imports()
 
 load_dotenv()
 
-st.set_page_config(page_title="GemKey AI", page_icon="🔑", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="KeyLytics AI", page_icon="🔑", layout="wide", initial_sidebar_state="expanded")
 
-@st.cache_data(ttl=3600)
+from src.gemini_client import safe_gemini_call, GEMINI_MODELS
+from src.db_client import save_to_db
+
 def initialize_session_state():
     """Initialize session state variables."""
     return {
@@ -32,7 +34,9 @@ def initialize_session_state():
         "search_history": [],
         "daily_requests": 0,
         "total_keywords": 0,
-        "opportunities": 0
+        "opportunities": 0,
+        "avg_volume": 0.0,
+        "trend_score": 0.0
     }
 
 session_defaults = initialize_session_state()
@@ -41,7 +45,7 @@ for key, value in session_defaults.items():
         st.session_state[key] = value
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-GEMINI_MODELS = ["gemini-2.0-flash", "gemini-flash-latest", "gemini-1.5-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite", "learnlm-2.0-flash-experimental"]
+
 @st.cache_data(ttl=1800)
 def cached_run_lightweight_agent(keyword, limit):
     from src.lightweight_agent import run_lightweight_agent
@@ -67,26 +71,6 @@ def cached_analyze_trend_forecasting(keywords):
     from src.trend_forecaster import analyze_trend_forecasting
     return analyze_trend_forecasting(keywords)
 
-@st.cache_data(ttl=3600)
-def safe_gemini_call(prompt, temperature=0.7):
-    """Try multiple Gemini models until one succeeds."""
-    for model_name in GEMINI_MODELS:
-        try:
-            model = genai.GenerativeModel(model_name)
-            result = model.generate_content(prompt)
-            if hasattr(result, "text"):
-                print(f"✅ Using {model_name}")
-                return result.text.strip()
-        except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower():
-                print(f"⚠️ {model_name} quota hit. Trying next...")
-                time.sleep(random.uniform(1, 3))
-                continue
-            else:
-                print(f"❌ {model_name} failed: {e}")
-                continue
-    return "⚠️ All Gemini models are currently unavailable. Try again later."
-
 @st.cache_data(ttl=300)
 def cached_fetch_past_results(limit=50):
     """Cached version of fetch_past_results for better performance."""
@@ -101,12 +85,11 @@ def cached_verify_database_schema():
 def cached_check_api_status():
     """Cached version of API status check."""
     return check_api_status()
-@st.cache_data(ttl=300)
-def cached_save_to_db(data):
-    """Cached version of save_to_db function."""
-    from src.db_client import save_to_db
+
+def save_to_db_direct(data):
+    """Direct version of save_to_db function."""
     return save_to_db(data)
-@st.cache_data(ttl=3600)
+
 def get_performance_stats():
     """Get performance statistics for monitoring."""
     return {
@@ -725,7 +708,7 @@ def render_sidebar():
                 elif "Can't connect" in error_msg or "Connection refused" in error_msg:
                     st.session_state.db_status = "❌ Can't connect - Check if MySQL is running"
                 elif "Unknown database" in error_msg:
-                    st.session_state.db_status = "❌ Database 'gemkey_ai' doesn't exist"
+                    st.session_state.db_status = "❌ Database 'keylytics_ai' doesn't exist"
                 else:
                     st.session_state.db_status = f"❌ Connection failed: {error_msg[:50]}..."
         st.rerun()
@@ -770,7 +753,7 @@ def render_home_overview():
     <div class="home-container">
         <div class="welcome-section">
             <div class="app-logo">💎</div>
-            <h1 class="app-title">GemKey AI</h1>
+            <h1 class="app-title">KeyLytics AI</h1>
             <p class="app-subtitle">Advanced SEO Research & Analysis Platform</p>
         </div>
     </div>
@@ -890,7 +873,7 @@ def update_global_metrics(keyword_results):
                 st.session_state.avg_volume = (current_avg * (total_count - len(df)) + new_avg * len(df)) / total_count        
         # Update opportunities (keywords with high scores)
         if 'score' in df.columns:
-            high_score_keywords = len(df[df['score'] > 7.0])  # Assuming score > 7 is high opportunity
+            high_score_keywords = len(df[df['score'] > 0.7])  # Assuming score > 0.7 is high opportunity
             current_opps = st.session_state.get("opportunities", 0)
             st.session_state.opportunities = current_opps + high_score_keywords        
         # Update trend score
@@ -982,13 +965,13 @@ def render_competitor_gap():
         your_keyword = st.text_input(
             "Your keyword:",
             placeholder="e.g., 'project management software'",
-            key="your_keyword"
+            key="your_keyword_gap_page"
         )
     with col2:
         competitor_keyword = st.text_input(
             "Competitor keyword:",
             placeholder="e.g., 'task management tools'",
-            key="competitor_keyword"
+            key="competitor_keyword_gap_page"
         )
     if st.button("🔍 Analyze Gap", type="primary"):
         if your_keyword and competitor_keyword:
@@ -1275,7 +1258,8 @@ def render_serp_analysis():
         # SERP preview cards
         if "serp_data" in results and results["serp_data"]:
             st.markdown("#### 🔍 Top-Ranking Pages")
-            for i, result in enumerate(results["serp_data"][:5]):
+            organic_results = results.get("serp_data", {}).get("organic_results", [])
+            for i, result in enumerate(organic_results[:5]):
                 with st.expander(f"#{i+1} {result.get('title', 'No title')[:50]}..."):
                     st.markdown(f"**URL:** {result.get('link', 'No URL')}")
                     st.markdown(f"**Snippet:** {result.get('snippet', 'No snippet')[:200]}...")
@@ -1591,9 +1575,10 @@ def render_full_strategy():
         # SERP Analysis
         if results['serp'] and 'serp_data' in results['serp']:
             with st.expander("📰 SERP Analysis"):
-                st.markdown(f"**Top Results:** {len(results['serp']['serp_data'])} pages analyzed")
-                if results['serp']['serp_data']:
-                    st.markdown(f"**Top Result:** {results['serp']['serp_data'][0].get('title', 'No title')}")
+                organic_results = results['serp'].get('serp_data', {}).get('organic_results', [])
+                st.markdown(f"**Top Results:** {len(organic_results)} pages analyzed")
+                if organic_results:
+                    st.markdown(f"**Top Result:** {organic_results[0].get('title', 'No title')}")
 
 def render_chat_interface():
     st.markdown("### 💬 Conversational SEO Assistant")
@@ -1640,7 +1625,7 @@ def generate_chat_response(user_input):
         elif any(word in user_lower for word in ["cluster", "group", "topic", "semantic"]):
             return f"🧩 **Topic Clustering Ready!**\n\nI can help you cluster topics for '{user_input}'. Here's what I can do:\n\n• **Semantic keyword clustering** into meaningful groups\n• **Topic opportunity scoring** and prioritization\n• **Content strategy recommendations** by cluster\n• **Keyword relationship mapping** and insights\n\n💡 **Quick Start:** Use the 'Topic Clustering' tab or ask me to 'cluster topics for [your keyword]'"
         else:
-            return f"💎 **Welcome to GemKey AI!**\n\nI understand you're asking about '{user_input}'. I'm your comprehensive SEO research assistant with these powerful features:\n\n🔍 **Keyword Analysis** - Find and analyze keywords with metrics\n🕵️ **Competitor Analysis** - Discover keyword gaps and opportunities\n📊 **SERP Analysis** - Optimize snippets and find PAA questions\n🧩 **Topic Clustering** - Group keywords semantically\n📈 **Trend Forecasting** - Predict trends and seasonal patterns\n\n💡 **How to get started:**\n• Use the tabs above for detailed analysis\n• Ask me specific questions like 'find keywords for [topic]'\n• Try 'analyze competitors for [keyword]' for gap analysis\n• Use 'show trends for [keyword]' for forecasting\n\nWhat would you like to explore first?"
+            return f"💎 **Welcome to KeyLytics AI!**\n\nI understand you're asking about '{user_input}'. I'm your comprehensive SEO research assistant with these powerful features:\n\n🔍 **Keyword Analysis** - Find and analyze keywords with metrics\n🕵️ **Competitor Analysis** - Discover keyword gaps and opportunities\n📊 **SERP Analysis** - Optimize snippets and find PAA questions\n🧩 **Topic Clustering** - Group keywords semantically\n📈 **Trend Forecasting** - Predict trends and seasonal patterns\n\n💡 **How to get started:**\n• Use the tabs above for detailed analysis\n• Ask me specific questions like 'find keywords for [topic]'\n• Try 'analyze competitors for [keyword]' for gap analysis\n• Use 'show trends for [keyword]' for forecasting\n\nWhat would you like to explore first?"
     except Exception as e:
         return f"⚠️ **I encountered an error:** {str(e)}\n\nPlease try again or use the specific tabs for detailed analysis. If the issue persists, check your API keys and internet connection."
 
@@ -1694,7 +1679,7 @@ def render_keyword_analysis():
                                 st.session_state.selected_keyword = keyword_input                                
                                 # Save to database
                                 try:
-                                    cached_save_to_db(limited_results)
+                                    save_to_db(limited_results)
                                     st.success(f"✅ Analyzed {len(limited_results)} keywords and saved to database!")
                                 except Exception as db_error:
                                     st.success(f"✅ Analyzed {len(limited_results)} keywords!")
@@ -1819,7 +1804,7 @@ def render_competitor_analysis():
         competitor_keyword = st.text_input(
             "Enter keyword for competitor analysis:",
             placeholder="e.g., 'project management software'",
-            key="competitor_keyword"
+            key="competitor_keyword_analysis_tab"
         )
     with col2:
         if st.button("🔍 Analyze Competitors", type="primary", use_container_width=True):
@@ -1883,7 +1868,7 @@ def render_serp_analysis_tab():
         serp_keyword = st.text_input(
             "Enter keyword for SERP analysis:",
             placeholder="e.g., 'best project management tools'",
-            key="serp_keyword"
+            key="serp_keyword_tab"
         )    
     with col2:
         if st.button("📊 Analyze SERP", type="primary", use_container_width=True):
@@ -1965,7 +1950,7 @@ def render_topic_clustering_tab():
         cluster_keyword = st.text_input(
             "Enter seed keyword for clustering:",
             placeholder="e.g., 'AI tools', 'fitness apps'",
-            key="cluster_keyword"
+            key="cluster_keyword_tab"
         )   
     with col2:
         if st.button("🧩 Cluster Topics", type="primary", use_container_width=True):
@@ -1979,7 +1964,7 @@ def render_topic_clustering_tab():
                             st.info(f"✅ Generated {len(keywords)} keywords. Now clustering...")                           
                             # Save keywords to database first
                             try:
-                                cached_save_to_db(keywords)
+                                save_to_db(keywords)
                                 st.info("💾 Keywords saved to database")
                             except Exception as db_error:
                                 st.warning(f"⚠️ Database save failed: {db_error}")                            
@@ -2056,7 +2041,7 @@ def render_trend_forecasting_tab():
         trend_keyword = st.text_input(
             "Enter keyword for trend analysis:",
             placeholder="e.g., 'AI tools', 'remote work'",
-            key="trend_keyword"
+            key="trend_keyword_tab"
         )
     with col2:
         if st.button("📈 Forecast Trends", type="primary", use_container_width=True):
@@ -2232,6 +2217,7 @@ def check_api_status():
     }
     return api_status
 
+@st.cache_data(ttl=300)
 def test_api_quick():
     """Quick API test to show current status."""
     results = {"gemini": False, "serpapi": False}

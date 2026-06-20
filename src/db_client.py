@@ -9,7 +9,7 @@ DEFAULT_DB_CONFIG = {
     'MYSQL_HOST': '127.0.0.1',
     'MYSQL_USER': 'root', 
     'MYSQL_PASSWORD': '',
-    'MYSQL_DATABASE': 'gemkey_ai',
+    'MYSQL_DATABASE': 'keylytics_ai',
     'MYSQL_PORT': '3306'
 }
 
@@ -23,9 +23,15 @@ def get_db_config():
         config[key] = value
     return config
 
-print("MYSQL_HOST from env:", os.getenv("MYSQL_HOST", "127.0.0.1 (default)"))
+_engine = None
 
-def connect_db():
+def get_engine():
+    global _engine
+    if _engine is None:
+        _engine = _create_engine()
+    return _engine
+
+def _create_engine():
     """Create and return a SQLAlchemy engine."""
     import urllib.parse
     config = get_db_config()
@@ -58,13 +64,16 @@ def connect_db():
         print("   MYSQL_HOST=127.0.0.1")
         print("   MYSQL_USER=root")
         print("   MYSQL_PASSWORD=your_password")
-        print("   MYSQL_DATABASE=gemkey_ai")
+        print("   MYSQL_DATABASE=keylytics_ai")
         raise e
+
+def connect_db():
+    return get_engine()
 
 def save_to_db(data):
     """Save keyword data with all computed fields."""
     try:
-        engine = connect_db()
+        engine = get_engine()
         df = pd.DataFrame(data)
         
         # Debug: Print sample data being saved
@@ -83,6 +92,7 @@ def save_to_db(data):
         
         # Use INSERT ... ON DUPLICATE KEY UPDATE to handle existing keywords
         with engine.begin() as conn:
+            params_list = []
             for _, row in df.iterrows():
                 # Ensure all required fields have proper values
                 seed_value = row.get("seed") or "Unknown"
@@ -96,35 +106,36 @@ def save_to_db(data):
                 intent_value = row.get("intent") or "informational"
                 competitors_value = row.get("competitors") or "[]"
                 
-                conn.execute(
-                    text("""
-                        INSERT INTO keywords (seed, keyword, volume, competition, cpc, trend, score, difficulty, intent, competitors)
-                        VALUES (:seed, :keyword, :volume, :competition, :cpc, :trend, :score, :difficulty, :intent, :competitors)
-                        ON DUPLICATE KEY UPDATE
-                            seed = VALUES(seed),
-                            volume = VALUES(volume),
-                            competition = VALUES(competition),
-                            cpc = VALUES(cpc),
-                            trend = VALUES(trend),
-                            score = VALUES(score),
-                            difficulty = VALUES(difficulty),
-                            intent = VALUES(intent),
-                            competitors = VALUES(competitors),
-                            last_updated = NOW();
-                    """),
-                    {
-                        "seed": seed_value,
-                        "keyword": keyword_value,
-                        "volume": volume_value,
-                        "competition": competition_value,
-                        "cpc": cpc_value,
-                        "trend": trend_value,
-                        "score": score_value,
-                        "difficulty": difficulty_value,
-                        "intent": intent_value,
-                        "competitors": competitors_value
-                    }
-                )
+                params_list.append({
+                    "seed": seed_value,
+                    "keyword": keyword_value,
+                    "volume": volume_value,
+                    "competition": competition_value,
+                    "cpc": cpc_value,
+                    "trend": trend_value,
+                    "score": score_value,
+                    "difficulty": difficulty_value,
+                    "intent": intent_value,
+                    "competitors": competitors_value
+                })
+            conn.execute(
+                text("""
+                    INSERT INTO keywords (seed, keyword, volume, competition, cpc, trend, score, difficulty, intent, competitors)
+                    VALUES (:seed, :keyword, :volume, :competition, :cpc, :trend, :score, :difficulty, :intent, :competitors)
+                    ON DUPLICATE KEY UPDATE
+                        seed = VALUES(seed),
+                        volume = VALUES(volume),
+                        competition = VALUES(competition),
+                        cpc = VALUES(cpc),
+                        trend = VALUES(trend),
+                        score = VALUES(score),
+                        difficulty = VALUES(difficulty),
+                        intent = VALUES(intent),
+                        competitors = VALUES(competitors),
+                        last_updated = NOW();
+                """),
+                params_list
+            )
         
         print(f"[OK] {len(df)} keywords saved/updated successfully!")
     except Exception as e:
@@ -132,6 +143,8 @@ def save_to_db(data):
         print("[INFO] Data will be saved to cache files instead")
         # Fallback: save to CSV cache
         try:
+            import os
+            os.makedirs("cache", exist_ok=True)
             cache_file = f"cache/keywords_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv"
             df = pd.DataFrame(data)
             df.to_csv(cache_file, index=False)
@@ -142,7 +155,7 @@ def save_to_db(data):
 def fetch_past_results(limit=50):
     """Fetch recent keyword entries."""
     try:
-        engine = connect_db()
+        engine = get_engine()
         query = text("""
             SELECT 
                 COALESCE(seed, 'Unknown') as seed,
@@ -230,7 +243,7 @@ def fetch_past_results(limit=50):
 def verify_database_schema():
     """Verify that the keywords table has all required columns."""
     try:
-        engine = connect_db()
+        engine = get_engine()
         with engine.connect() as conn:
             # Check if table exists and get column info
             result = conn.execute(text("""
@@ -267,7 +280,7 @@ def get_cached_intent(keyword):
     Fetch cached intent for a given keyword from 'intent_cache' table if available.
     """
     try:
-        engine = connect_db()
+        engine = get_engine()
         query = text("SELECT intent FROM intent_cache WHERE keyword = :kw LIMIT 1;")
         result = pd.read_sql(query, engine, params={"kw": keyword})
         if not result.empty:
@@ -285,7 +298,7 @@ def save_intent_to_db(keyword, intent):
     Save new intent into 'intent_cache' table.
     """
     try:
-        engine = connect_db()
+        engine = get_engine()
         with engine.begin() as conn:
             conn.execute(
                 text("""

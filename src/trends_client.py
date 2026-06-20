@@ -6,13 +6,12 @@ import pandas as pd
 from sqlalchemy import text
 from pytrends.request import TrendReq
 from dotenv import load_dotenv
-from src.db_client import connect_db
+from src.db_client import get_engine
 
 load_dotenv()
 
 # Suppress pandas FutureWarning for pytrends
 warnings.filterwarnings("ignore", category=FutureWarning, module="pytrends")
-pytrends = TrendReq(hl='en-US', tz=360)
 
 def get_trend_score(keyword):
     """
@@ -34,10 +33,8 @@ def get_trend_score(keyword):
             # Progressive delay to avoid rate-limit
             delay = base_delay * (2 ** attempt) + random.uniform(0.5, 2.0)
             time.sleep(delay)
-            # Reset pytrends connection to avoid stale sessions
-            if attempt > 0:
-                global pytrends
-                pytrends = TrendReq(hl='en-US', tz=360)
+            # Reset pytrends connection to avoid stale sessions or instantiate locally
+            pytrends = TrendReq(hl='en-US', tz=360)
             pytrends.build_payload([keyword], timeframe="today 12-m")
             data = pytrends.interest_over_time()
             if not data.empty:
@@ -73,7 +70,7 @@ def get_cached_trend(keyword):
     Retrieve cached trend if less than 7 days old.
     """
     try:
-        engine = connect_db()
+        engine = get_engine()
         query = text("""
             SELECT trend, last_updated
             FROM keywords
@@ -100,7 +97,7 @@ def save_trend_to_db(keyword, score):
     Save or update trend score in DB.
     """
     try:
-        engine = connect_db()
+        engine = get_engine()
         with engine.begin() as conn:
             conn.execute(
                 text("""

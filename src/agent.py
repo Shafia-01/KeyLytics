@@ -13,6 +13,8 @@ from src.db_client import save_to_db
 
 load_dotenv()
 
+from src.constants import DIFFICULTY_EASY_THRESHOLD, DIFFICULTY_MEDIUM_THRESHOLD
+
 # SCORE COMPUTATION
 def compute_score(metrics):
     """
@@ -28,16 +30,16 @@ def compute_score(metrics):
 
 def classify_difficulty(score):
     """Classify keyword difficulty based on score."""
-    if score >= 0.8:
+    if score >= DIFFICULTY_EASY_THRESHOLD:
         return "Easy"
-    elif score >= 0.5:
+    elif score >= DIFFICULTY_MEDIUM_THRESHOLD:
         return "Medium"
     else:
         return "Hard"
 
 # MAIN AGENT
 def run_agent(seed_keyword, max_keywords=50):
-    print(f"\nRunning GemKey AI for: {seed_keyword}")
+    print(f"\nRunning KeyLytics AI for: {seed_keyword}")
     keywords = generate_keywords(seed_keyword)
     
     # Fallback if Gemini failed
